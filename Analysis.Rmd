@@ -1,0 +1,250 @@
+---
+title: "Analysis"
+output: pdf_document
+date: "2024-02-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+library(tidyverse)
+
+path <- "/Users/clair1/Documents/University of Chicago Year 2/Policy Lab/sosure_raise_ete_clean_variable_names.xlsx"
+sosure_raise_ete_raw <- read_xlsx(path)
+sosure_raise_ete_raw <- sosure_raise_ete_raw %>% 
+  mutate(unique_id = row_number()) %>% 
+  relocate(unique_id)
+```
+```{r}
+non_participants <- sosure_raise_ete_raw |>
+  filter(`1. Which project in the consortium has a beneficiary been participating in?` == "None") 
+##remove non-participants and Select only activities questions
+sosure_raise_activities <- sosure_raise_ete_raw |>
+  filter(`1. Which project in the consortium has a beneficiary been participating in?` != "None") |>
+  select(unique_id, `3. What activities have you been participating in?`:`Better coordination between development partners`)
+
+sosure_raise_activities_binary <- sosure_raise_activities %>%
+  mutate(across(-c(1), ~ ifelse(.x == "Yes", 1, ifelse(.x == "No", 0, 0)))) %>% 
+  mutate(across(-c(1), ~ as.integer(.x)))
+  
+sosure_raise_activities_binary[is.na(sosure_raise_activities_binary)] <- 0
+
+```
+
+
+```{r}
+###Create buckets
+sosure_raise_activities_buckets <- sosure_raise_activities_binary |>
+  mutate(social = `Inclusion in other social support interventions` +
+                  `Targeting` +
+                  `Gender equality community model` +
+                  `Adult literacy` +
+                  `Improved COVI awareness and behaviour` +
+                  `Mapping of services, linkages and referral` +
+                  `Better coordination between development partners`,
+         financial = `Financial or economic empowerment support` +
+                  `Village savings and loans` +
+                  `Coaching and mentoring` +
+                  `Support establishment of associations/cooperatives` +
+                  `Capacity building in business management, financial literacy and business enterprises.` +
+                  `Training in VSL` +
+                  `Support establishment of associations/cooperatives2` +
+                  `Linking to micro-finance institutions` +
+                  `Capacity building in business management, financial literacy, and business enterprises.` +
+                  `Consumption support` +
+                  `Business skills` +
+                  `VSLA` +
+                  `Linking to micro-finance institutions` +
+                  `Graduation/exit package` +
+                  `Graduation/exit package2`,
+         agricultural = `Nutrition initiatives` +
+                  `Promote home gardening.` +
+                  `Capacity building in agricultural related activities and nutrition initiatives alongside irrigation activities` +
+                  `Links and referrals` +
+                  `Livestock distribution from Pro-ACT pass-on scheme` +
+                  `Crop diversification` +
+                  `Natural Resource Management initiatives` +
+                  `Capacity building in agricultural related activities and nutrition` +
+                  `Soil and water conservation technologies` +
+                  `Crop diversification2` +
+                  `Climate Smart Agriculture technologies` +
+                  `Market linkages for agricultural production` +
+                  `Natural resources management initiatives` +
+                  `Agricultural input fairs (access to diversified crops` +
+                  `Food processing training` +
+                  `CSA training` +
+                  `CSA technologies`) |>
+  relocate(social:agricultural)
+```
+
+## Bucketing
+```{r}
+sosure_raise_activities_buckets <- sosure_raise_activities_buckets %>% 
+ filter(!(social == 0 & financial == 0 & agricultural == 0))
+
+full <- sosure_raise_activities_buckets[
+  sosure_raise_activities_buckets$social != 0 & 
+  sosure_raise_activities_buckets$financial != 0 & 
+  sosure_raise_activities_buckets$agricultural != 0 &
+  (sosure_raise_activities_buckets$social == 1 | 
+   sosure_raise_activities_buckets$financial == 1 | 
+   sosure_raise_activities_buckets$agricultural == 1),
+]
+
+partial <- sosure_raise_activities_buckets[sosure_raise_activities_buckets$social == 0 | sosure_raise_activities_buckets$financial == 0 | sosure_raise_activities_buckets$agricultural == 0, ]
+
+
+full_plus <- sosure_raise_activities_buckets[sosure_raise_activities_buckets$social >= 2 & sosure_raise_activities_buckets$financial >= 2 & sosure_raise_activities_buckets$agricultural >= 2, ]
+
+```
+
+```{r}
+full_merged <- merge(full, sosure_raise_ete_raw, by = "unique_id")
+full_plus_merged <-merge(full_plus, sosure_raise_ete_raw, by = "unique_id")
+partial_merged <- merge(partial, sosure_raise_ete_raw, by = "unique_id")
+```
+
+```{r}
+mean_income = c(mean(full_merged$`B2. How much do you make monthly from these sources MWK`),
+          mean(full_plus_merged$`B2. How much do you make monthly from these sources MWK`),
+          mean(partial_merged$`B2. How much do you make monthly from these sources MWK`),
+          mean(non_participants$`B2. How much do you make monthly from these sources MWK`))
+cats = c("Full", "Full Plus", "Partial", "None (Control)")
+
+mean_income_df <- data.frame(cats, mean_income)
+
+mean_income_df %>% 
+  ggplot(aes(x = cats, y = mean_income)) +
+  geom_col()
+
+```
+```{r}
+print(colnames(full_merged))
+```
+
+
+#Assets
+Oxcart, Radio, Solar panel, Treadle pump, Watering cane, wheelbarrow
+
+
+```{r}
+mean_ox = c(mean(partial_merged$`C1. Which of the following household items do you have?/Oxcart`),
+            mean(full_merged$`C1. Which of the following household items do you have?/Oxcart`),
+          mean(full_plus_merged$`C1. Which of the following household items do you have?/Oxcart`),
+          mean(non_participants$`C1. Which of the following household items do you have?/Oxcart`)
+          ) * 100
+cats = c("Partial","Full", "Full Plus", "None (Control)")
+
+mean_ox_df <- data.frame(cats, mean_ox)
+
+mean_income_df %>% 
+  ggplot(aes(x = cats, y = mean_ox)) +
+  geom_col() + 
+  labs(title = "Percent of Buckets that Own an Oxcart",
+       y = "Percent",
+       x = "Buckets") +
+  geom_text(aes(label = round(mean_ox, 2)), vjust = 1.5, colour = "white")
+
+
+
+## RADIO
+mean_radio = c(mean(partial_merged$`C1. Which of the following household items do you have?/Radio`),
+            mean(full_merged$`C1. Which of the following household items do you have?/Radio`),
+          mean(full_plus_merged$`C1. Which of the following household items do you have?/Radio`),
+          mean(non_participants$`C1. Which of the following household items do you have?/Radio`)
+
+          ) * 100
+
+mean_rad_df <- data.frame(cats, mean_radio)
+
+mean_rad_df %>% 
+  ggplot(aes(x = cats, y = mean_radio)) +
+  geom_col() + 
+  labs(title = "Percent of Buckets that Own a Radio",
+       y = "Percent",
+       x = "Buckets") +
+  geom_text(aes(label = round(mean_radio, 2)), vjust = 1.5, colour = "white")
+
+
+
+## SOLAR PANEL
+mean_solar = c(mean(partial_merged$`C1. Which of the following household items do you have?/Solar panel`),
+            mean(full_merged$`C1. Which of the following household items do you have?/Solar panel`),
+          mean(full_plus_merged$`C1. Which of the following household items do you have?/Solar panel`),
+          mean(non_participants$`C1. Which of the following household items do you have?/Solar panel`)
+
+          ) * 100
+
+mean_solar_df <- data.frame(cats, mean_solar)
+
+mean_solar_df %>% 
+  ggplot(aes(x = cats, y = mean_solar)) +
+  geom_col() + 
+  labs(title = "Percent of Buckets that Own a Solar Panel",
+       y = "Percent",
+       x = "Buckets") +
+  geom_text(aes(label = round(mean_solar, 2)), vjust = 1.5, colour = "white")
+
+
+## TREADLE PUMP
+mean_treadle = c(
+  mean(partial_merged$`C1. Which of the following household items do you have?/Treadle pump`),
+  mean(full_merged$`C1. Which of the following household items do you have?/Treadle pump`),
+  mean(full_plus_merged$`C1. Which of the following household items do you have?/Treadle pump`),
+  mean(non_participants$`C1. Which of the following household items do you have?/Treadle pump`)
+
+          ) * 100
+
+mean_treadle_df <- data.frame(cats, mean_treadle)
+
+mean_treadle_df %>% 
+  ggplot(aes(x = cats, y = mean_treadle)) +
+  geom_col() + 
+  labs(title = "Percent of Buckets that Own a Treadle Pump",
+       y = "Percent",
+       x = "Buckets") + 
+  geom_text(aes(label = round(mean_treadle, 2)), vjust = 1.5, colour = "white")
+
+
+
+## Watering Cane
+mean_water = c(mean(partial_merged$`C1. Which of the following household items do you have?/Watering cane`),
+            mean(full_merged$`C1. Which of the following household items do you have?/Watering cane`),
+          mean(full_plus_merged$`C1. Which of the following household items do you have?/Watering cane`),
+          mean(non_participants$`C1. Which of the following household items do you have?/Watering cane`)
+          ) * 100
+
+mean_water_df <- data.frame(cats, mean_water)
+
+mean_water_df %>% 
+  ggplot(aes(x = cats, y = mean_water)) +
+  geom_col() + 
+  labs(title = "Percent of Buckets that Own a Watering Cane",
+       y = "Percent",
+       x = "Buckets") +
+  geom_text(aes(label = round(mean_water, 2)), vjust = 1.5, colour = "white")
+
+
+
+## Wheelbarrow
+mean_wheel = c(mean(partial_merged$`C1. Which of the following household items do you have?/Wheelbarrow`),
+            mean(full_merged$`C1. Which of the following household items do you have?/Wheelbarrow`),
+          mean(full_plus_merged$`C1. Which of the following household items do you have?/Wheelbarrow`),
+          mean(non_participants$`C1. Which of the following household items do you have?/Wheelbarrow`)
+          ) * 100
+
+mean_wheel_df <- data.frame(cats, mean_wheel)
+
+mean_wheel_df %>% 
+  ggplot(aes(x = cats, y = mean_wheel)) +
+  geom_col() + 
+  labs(title = "Percent of Buckets that Own a Wheelbarrow",
+       y = "Percent",
+       x = "Buckets") +
+  geom_text(aes(label = round(mean_wheel, 2)), vjust = 1.5, colour = "white")
+
+```
+
