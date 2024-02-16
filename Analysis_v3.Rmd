@@ -1,0 +1,296 @@
+---
+title: "Analysis"
+output: pdf_document
+date: "2024-02-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+
+path <- "/Users/yuxin/Personal/Uchicago/2024 Winter/PPHA 60000 Policy Lab/Data Analysis/Bucket Reclassification/sosure_raise_ete_clean_variable_names.xlsx"
+sosure_raise_ete_raw <- read_xlsx(path)
+sosure_raise_ete_raw <- sosure_raise_ete_raw %>% 
+  mutate(unique_id = row_number()) %>% 
+  relocate(unique_id)
+```
+
+```{r}
+sosure_raise_activities <- sosure_raise_ete_raw |>
+  filter(`1. Which project in the consortium has a beneficiary been participating in?` != "None") |>
+  select(unique_id, `3. What activities have you been participating in?`:`Better coordination between development partners`)
+
+sosure_raise_activities_binary <- sosure_raise_activities %>%
+  mutate(across(-c(1), ~ ifelse(.x == "Yes", 1, ifelse(.x == "No", 0, 0)))) %>% 
+  mutate(across(-c(1), ~ as.integer(.x)))
+  
+sosure_raise_activities_binary[is.na(sosure_raise_activities_binary)] <- 0
+
+```
+
+
+```{r}
+###Create buckets
+sosure_raise_activities_buckets <- sosure_raise_activities_binary |>
+  mutate(social = `Inclusion in other social support interventions` +
+                  `Targeting` +
+                  `Gender equality community model` +
+                  `Adult literacy` +
+                  `Improved COVI awareness and behaviour` +
+                  `Mapping of services, linkages and referral` +
+                  `Coaching and mentoring` +
+                  `Better coordination between development partners`,
+         financial = `Financial or economic empowerment support` +
+                  `Village savings and loans` +
+                  `Support establishment of associations/cooperatives` +
+                  `Capacity building in business management, financial literacy and business enterprises.` +
+                  `Training in VSL` +
+                  `Support establishment of associations/cooperatives2` +
+                  `Linking to micro-finance institutions` +
+                  `Capacity building in business management, financial literacy, and business enterprises.` +
+                  `Consumption support` +
+                  `Business skills` +
+                  `VSLA` +
+                  `Linking to micro-finance institutions` +
+                  `Graduation/exit package` +
+                  `Graduation/exit package2`,
+         agricultural = `Nutrition initiatives` +
+                  `Promote home gardening.` +
+                  `Capacity building in agricultural related activities and nutrition initiatives alongside irrigation activities` +
+                  `Links and referrals` +
+                  `Livestock distribution from Pro-ACT pass-on scheme` +
+                  `Crop diversification` +
+                  `Natural Resource Management initiatives` +
+                  `Capacity building in agricultural related activities and nutrition` +
+                  `Soil and water conservation technologies` +
+                  `Crop diversification2` +
+                  `Climate Smart Agriculture technologies` +
+                  `Market linkages for agricultural production` +
+                  `Natural resources management initiatives` +
+                  `Agricultural input fairs (access to diversified crops` +
+                  `Food processing training` +
+                  `CSA training` +
+                  `CSA technologies`) |>
+  relocate(social:agricultural)
+```
+
+## Bucketing
+```{r}
+sosure_raise_activities_buckets <- sosure_raise_activities_buckets %>% 
+ filter(!(social == 0 & financial == 0 & agricultural == 0))
+
+full <- sosure_raise_activities_buckets[
+  sosure_raise_activities_buckets$social != 0 & 
+  sosure_raise_activities_buckets$financial != 0 & 
+  sosure_raise_activities_buckets$agricultural != 0 &
+  (sosure_raise_activities_buckets$social == 1 | 
+   sosure_raise_activities_buckets$financial == 1 | 
+   sosure_raise_activities_buckets$agricultural == 1),
+]
+
+partial <- sosure_raise_activities_buckets[sosure_raise_activities_buckets$social == 0 | sosure_raise_activities_buckets$financial == 0 | sosure_raise_activities_buckets$agricultural == 0, ]
+
+
+full_plus <- sosure_raise_activities_buckets[sosure_raise_activities_buckets$social >= 2 & sosure_raise_activities_buckets$financial >= 2 & sosure_raise_activities_buckets$agricultural >= 2, ]
+
+```
+
+
+```{r}
+full_merged <- full %>%
+  mutate(bucket = 'full') %>%
+  merge(sosure_raise_ete_raw, by = "unique_id") %>%
+  relocate('bucket', 'District-', 'Implementing partner', .before = 1)
+
+
+full_plus <- full_plus %>%
+  mutate(bucket = 'full_plus') %>%
+  merge(sosure_raise_ete_raw, by = "unique_id") %>%
+  relocate('bucket', 'District-', 'Implementing partner', .before = 1)
+
+
+partial <- partial %>%
+  mutate(bucket = 'partial') %>%
+  merge(sosure_raise_ete_raw, by = "unique_id") %>%
+  relocate('bucket', 'District-', 'Implementing partner', .before = 1)
+
+
+sosure_raise_activities_classfied <- rbind(full_merged, full_plus, partial)
+```
+
+```{r}
+by_district_input <- sosure_raise_activities_classfied %>%
+  group_by(`District-`) %>%
+  summarise(avg_social = round(mean(social), 2),
+            avg_financial = round(mean(financial), 2),
+            avg_agricultural = round(mean(agricultural), 2))
+
+```
+
+
+```{r}
+by_district_social_plot <- ggplot(by_district_input, aes(x = `District-`, y = avg_social)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "District-wise Social Interventions", x = "District", y = "#Social Interventions") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+by_district_social_plot
+ggsave("by_district_social_plot.png", by_district_social_plot)
+
+by_district_financial_plot <- ggplot(by_district_input, aes(x = `District-`, y = avg_financial)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "District-wise Financial Interventions", x = "District", y = "#Financial Interventions") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+by_district_financial_plot
+ggsave("by_district_financial_plot.png", by_district_financial_plot)
+
+
+by_district_agricultural_plot <- ggplot(by_district_input, aes(x = `District-`, y = avg_agricultural)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "District-wise Agricultural Interventions", x = "District", y = "#Agricultural Interventions") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+by_district_agricultural_plot
+ggsave("by_district_agricultural_plot.png", by_district_agricultural_plot)
+
+
+```
+
+```{r}
+#creating columns to sum for our aggregated score of assets
+
+column_ownership <- sosure_raise_activities_classfied %>% 
+  select(starts_with("C1.") | starts_with("C1a.")) %>% 
+  select(-1, -22, -23)
+
+test = names(column_ownership)
+
+columns_to_sum <-colnames(column_ownership)
+
+```
+
+```{r}
+#creating aggregated score column
+sosure_aggregated <- sosure_raise_activities_classfied %>%
+  mutate(aggregated_score = rowSums(select(., all_of(test)), na.rm = TRUE))
+
+
+#adding a max total score
+sosure_aggregated <- sosure_aggregated |>
+  mutate(max_total = 20)
+
+#adding an an aggregated asset index (excluding how much land someone owns)
+sosure_aggregated <- sosure_aggregated |>
+  mutate(agg_asset_index = aggregated_score / max_total)
+
+
+#adding a scaled land ownership variable to account for non-binary differences in amount of land owned 
+
+min_land_value <- min(sosure_aggregated$`C1a. How many land pieces do you own?`,  na.rm = TRUE)
+max_land_value <- max(sosure_aggregated$`C1a. How many land pieces do you own?`,  na.rm = TRUE)
+
+sosure_aggregated <- sosure_aggregated |>
+  mutate(scaled_land_ownership = round((`C1a. How many land pieces do you own?` - min_land_value) / (max_land_value - min_land_value) , digits = 2)
+           )
+```
+
+```{r chunk 3, echo=FALSE}
+weight_land_ownership <- 0.8  # Weight for scaled income score
+weight_aggregated <- 0.2  # Weight for aggregated score
+
+# Create the summary, weighted index for assets
+sosure_aggregated <- sosure_aggregated |>
+  mutate(raw_asset_index = (scaled_land_ownership * weight_land_ownership) +
+                                (agg_asset_index * weight_aggregated))
+
+min_value <- min(sosure_aggregated$raw_asset_index, na.rm = TRUE) #converting raw to scaled index 
+max_value <- max(sosure_aggregated$raw_asset_index, na.rm = TRUE)
+
+# Perform min-max normalization of asset index to make scale 0 to 1
+sosure_aggregated <- sosure_aggregated |>
+  mutate(scaled_asset_index = round((raw_asset_index - min_value) / (max_value - min_value), digits = 2)
+  )
+
+sosure_aggregared_rm_na <- sosure_aggregated[!is.na(sosure_aggregated$scaled_summary_index), ]
+
+na_count <- sum(is.na(sosure_aggregared_rm_na$scaled_summary_index))
+
+
+```
+
+```{r}
+# Comparing asset index across districts
+by_district_asset <- sosure_aggregared_rm_na %>%
+  group_by(`District-`) %>%
+  summarise(avg_asset_index = round(mean(scaled_summary_index), 2))
+
+by_package_asset <- sosure_aggregared_rm_na %>%
+  group_by(bucket) %>%
+  summarise(avg_asset_index = round(mean(scaled_summary_index), 2))
+
+by_hhsize_asset <- sosure_aggregared_rm_na %>%
+  group_by(`A15.  Total Size of Household`) %>%
+  summarise(avg_asset_index = round(mean(scaled_summary_index), 2))
+
+by_hhheadsex_asset <- sosure_aggregared_rm_na %>%
+  group_by(`A2. Sex of HH Head`) %>%
+  summarise(avg_asset_index = round(mean(scaled_summary_index), 2))
+
+
+
+```
+
+```{r}
+by_district_asset_plot <- ggplot(by_district_asset, aes(x = `District-`, y = avg_asset_index)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "District-wise Asset Index", x = "District", y = "Asset Index") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+by_district_asset_plot
+ggsave("by_district_asset_plot.png", by_district_asset_plot)
+
+by_package_asset_plot <- ggplot(by_package_asset, aes(x = bucket, y = avg_asset_index)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Package-wise Asset Index", x = "Package", y = "Asset Index") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+by_package_asset_plot
+ggsave("by_package_asset_plot.png", by_package_asset_plot)
+
+
+by_hhsize_asset_plot <- ggplot(by_hhsize_asset, aes(x = `A15.  Total Size of Household`, y = avg_asset_index)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Hhsize-wise Asset Index", x = "Household Size", y = "Asset Index") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+by_hhsize_asset_plot
+ggsave("by_hhsize_asset_plot.png", by_hhsize_asset_plot)
+
+by_hhheadsex_asset_plot <- ggplot(by_hhheadsex_asset, aes(x = `A2. Sex of HH Head`, y = avg_asset_index)) +
+  geom_bar(stat = "identity", fill = "skyblue", color = "black") +
+  labs(title = "Hhsize-wise Asset Index", x = "Household Size", y = "Asset Index") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+by_hhheadsex_asset_plot
+ggsave("by_hhheadsex_asset_plot.png", by_hhheadsex_asset_plot)
+
+
+
+```
+
+
+
