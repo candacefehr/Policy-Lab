@@ -14,7 +14,7 @@ library(tidyverse)
 library(dplyr)
 library(ggplot2)
 
-path <- "/Users/yuxin/Personal/Uchicago/2024 Winter/PPHA 60000 Policy Lab/Data Analysis/Bucket Reclassification/sosure_raise_ete_clean_variable_names.xlsx"
+path <- "sosure_raise_ete_clean_variable_names.xlsx"
 sosure_raise_ete_raw <- read_xlsx(path)
 sosure_raise_ete_raw <- sosure_raise_ete_raw %>% 
   mutate(unique_id = row_number()) %>% 
@@ -22,6 +22,9 @@ sosure_raise_ete_raw <- sosure_raise_ete_raw %>%
 ```
 
 ```{r}
+non_participants <- sosure_raise_ete_raw |>
+  filter(`1. Which project in the consortium has a beneficiary been participating in?` == "None") 
+
 sosure_raise_activities <- sosure_raise_ete_raw |>
   filter(`1. Which project in the consortium has a beneficiary been participating in?` != "None") |>
   select(unique_id, `3. What activities have you been participating in?`:`Better coordination between development partners`)
