@@ -115,10 +115,10 @@ non_participants <- sosure_raise_ete_raw |>
 full_merged <- full_merged |>
   mutate(package = "Full Graduation") |>
   relocate(package)
-full_plus <- full_plus |>
+full_plus_merged <- full_plus_merged |>
   mutate(package = "Full Graduation Plus") |>
   relocate(package)
-partial <- partial |>
+partial_merged <- partial_merged |>
   mutate(package = "Partial Graduation") |>
   relocate(package)
 non_participants <- non_participants |>
@@ -288,8 +288,9 @@ package_combined |>
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+##Assets by district by package
+Beds
 ```{r}
-##by district by package
 package_combined |>
   select(`C1. Which of the following household items do you have?/Beds`, package, District) |>
   group_by(package, District) |>
@@ -303,3 +304,73 @@ package_combined |>
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
+
+cell phones
+```{r}
+package_combined |>
+  select(`C1. Which of the following household items do you have?/Cell phone`, package, District) |>
+  group_by(package, District) |>
+  summarize(
+    cell = mean(`C1. Which of the following household items do you have?/Cell phone`)) |>
+  mutate(cell = cell * 100)|>
+  ggplot(aes(x = District, y = cell, fill = package)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "District", y = "Cell Phone (%)", fill = "Package") +
+  ggtitle("Cell Phones by District and Package") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+chairs
+```{r}
+package_combined |>
+  select(`C1. Which of the following household items do you have?/Chairs`, package, District) |>
+  group_by(package, District) |>
+  summarize(
+    chair = mean(`C1. Which of the following household items do you have?/Chairs`)) |>
+  mutate(chair = chair * 100)|>
+  ggplot(aes(x = District, y = chair, fill = package)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "District", y = "Chairs (%)", fill = "Package") +
+  ggtitle("Chairs by District and Package") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+hoe
+```{r}
+package_combined |>
+  select(`C1. Which of the following household items do you have?/Hoe`, package, District) |>
+  group_by(package, District) |>
+  summarize(
+    hoe = mean(`C1. Which of the following household items do you have?/Hoe`)) |>
+  mutate(hoe = hoe * 100)|>
+  ggplot(aes(x = District, y = hoe, fill = package)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "District", y = "Hoes (%)", fill = "Package") +
+  ggtitle("Hoes by District and Package") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+mattress
+```{r}
+package_combined |>
+  select(`C1. Which of the following household items do you have?/Matress`, package, District) |>
+  group_by(package, District) |>
+  summarize(
+    mattress = mean(`C1. Which of the following household items do you have?/Matress`)) |>
+  mutate(mattress = mattress * 100)|>
+  ggplot(aes(x = District, y = mattress, fill = package)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "District", y = "Mattress (%)", fill = "Package") +
+  ggtitle("Mattresses by District and Package") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+
+
+
