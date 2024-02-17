@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readxl)
 library(tidyverse)
 
-path <- "/Users/clair1/Documents/University of Chicago Year 2/Policy Lab/sosure_raise_ete_clean_variable_names.xlsx"
+path <- "C:/Users/Ben/Desktop/Policy Lab/sosure_raise_ete_clean_variable_names.xlsx"
 sosure_raise_ete_raw <- read_xlsx(path)
 sosure_raise_ete_raw <- sosure_raise_ete_raw %>% 
   mutate(unique_id = row_number()) %>% 
@@ -105,8 +105,30 @@ full_plus <- sosure_raise_activities_buckets[sosure_raise_activities_buckets$soc
 full_merged <- merge(full, sosure_raise_ete_raw, by = "unique_id")
 full_plus_merged <-merge(full_plus, sosure_raise_ete_raw, by = "unique_id")
 partial_merged <- merge(partial, sosure_raise_ete_raw, by = "unique_id")
+non_participants <- sosure_raise_ete_raw |>
+  filter(`1. Which project in the consortium has a beneficiary been participating in?` == "None")
 ```
 
+##creating "package" variable and combining each package df into one df called 
+"package_combined"
+```{r}
+full_merged <- full_merged |>
+  mutate(package = "Full Graduation") |>
+  relocate(package)
+full_plus <- full_plus |>
+  mutate(package = "Full Graduation Plus") |>
+  relocate(package)
+partial <- partial |>
+  mutate(package = "Partial Graduation") |>
+  relocate(package)
+non_participants <- non_participants |>
+  mutate(package = "None (Control)") |>
+  relocate(package)
+
+package_combined <- bind_rows(full_plus_merged, full_merged, partial_merged, non_participants)
+```
+
+### Claire's original analysis
 ```{r}
 mean_income = c(mean(full_merged$`B2. How much do you make monthly from these sources MWK`),
           mean(full_plus_merged$`B2. How much do you make monthly from these sources MWK`),
@@ -248,3 +270,36 @@ mean_wheel_df %>%
 
 ```
 
+
+
+
+### Candace Analysis pt.2
+##type of intervention by district
+```{r}
+package_combined$package <- factor(package_combined$package, 
+                                  levels = c("Full Graduation Plus", "Full Graduation", "Partial Graduation", "Control (None)"))
+
+package_combined |>
+  ggplot(aes(x = District, fill = package)) +
+  geom_bar(position = "dodge") +
+  labs(x = "District", y = "Count", fill = "Package") +
+  ggtitle("Count of Packages by District") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+##by district by package
+package_combined |>
+  select(`C1. Which of the following household items do you have?/Beds`, package, District) |>
+  group_by(package, District) |>
+  summarize(
+    bed = mean(`C1. Which of the following household items do you have?/Beds`)) |>
+  mutate(bed = bed * 100)|>
+  ggplot(aes(x = District, y = bed, fill = package)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "District", y = "Beds (%)", fill = "Package") +
+  ggtitle("Beds by District and Package") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
