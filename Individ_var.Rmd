@@ -369,8 +369,53 @@ package_combined |>
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
+Radio
+```{r}
+package_combined |>
+  select(`C1. Which of the following household items do you have?/Radio`, package, District) |>
+  group_by(package, District) |>
+  summarize(
+    radio = mean(`C1. Which of the following household items do you have?/Radio`)) |>
+  mutate(radio = radio * 100)|>
+  ggplot(aes(x = District, y = radio, fill = package)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "District", y = "Radio (%)", fill = "Package") +
+  ggtitle("Radio by District and Package") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 
+Solar Panel
+```{r}
+package_combined |>
+  select(`C1. Which of the following household items do you have?/Solar panel`, package, District) |>
+  group_by(package, District) |>
+  summarize(
+    mattress = mean(`C1. Which of the following household items do you have?/Solar panel`)) |>
+  mutate(solar = mattress * 100)|>
+  ggplot(aes(x = District, y = solar, fill = package)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "District", y = "Solar Panel (%)", fill = "Package") +
+  ggtitle("Solar Panels by District and Package") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 
+Watering Cane
+```{r}
+package_combined |>
+  select(`C1. Which of the following household items do you have?/Watering cane`, package, District) |>
+  group_by(package, District) |>
+  summarize(
+    cane = mean(`C1. Which of the following household items do you have?/Watering cane`)) |>
+  mutate(cane = cane * 100)|>
+  ggplot(aes(x = District, y = cane, fill = package)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "District", y = "Watering Cane (%)", fill = "Package") +
+  ggtitle("Watering Canes by District and Package") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
 
 
 
